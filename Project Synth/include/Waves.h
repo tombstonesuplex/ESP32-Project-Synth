@@ -3,55 +3,50 @@
 
 #include <string>
 
-namespace ProjectSynth {
-namespace Waves {
+enum class WaveTypes { Sine, Sawtooth, Triangular, Square };
 
-    enum class WaveTypes { Sine, Sawtooth, Triangular, Square };
+WaveTypes str_to_wave(const std::string& s);
 
-    WaveTypes strToWave(const std::string& s);
+class Wave {
+    private:
+        float amplitude;
+        float phase;
+        float frequency;
+        WaveTypes wave_type;
 
-    class Wave {
-        private:
-            float amplitude;
-            float phase;
-            float frequency;
-            WaveTypes waveType;
-    
-        public:
-            Wave(float amplitude, float phase, float frequency, const std::string& waveTypeStr);
+    public:
+        Wave(float amplitude, float phase, float frequency, const std::string& wave_type_str);
 
-            float getAmplitude();
-            void setAmplitude(float amplitude);
+        float get_amplitude();
+        void set_amplitude(float amplitude);
 
-            float getPhase();
-            void setPhase(float phase);
+        float get_phase();
+        void set_phase(float phase);
 
-            float getFrequency();
-            void setFrequency(float frequency);
+        float get_frequency();
+        void set_frequency(float frequency);
 
-            WaveTypes getWaveType();
-            void setWaveType(const std::string& waveTypeStr);
+        WaveTypes get_wave_type();
+        void set_wave_type(const std::string& wave_type_str);
 
-            float getSignalValue(float phase);
+        float get_signal_value(float phase);
 
-        private:
-            float sineWave(float phase);
-            float squareWave(float phase);
-            float sawtoothWave(float phase);
-            float triangularWave(float phase);
-    };
+    private:
+        float sine_wave(float phase);
+        float square_wave(float phase);
+        float sawtooth_wave(float phase);
+        float triangular_wave(float phase);
+};
 
-    class CarrierWave : public Wave {
-        private:
-            float modulatorIndex;
-        public:
-            CarrierWave(float amplitude, float phase, float frequency, const std::string& waveTypeStr, float modulatorIndex);
+class CarrierWave : public Wave {
+    private:
+        float modulator_index;
+    public:
+        CarrierWave(float amplitude, float phase, float frequency, const std::string& wave_type_str, float modulator_index);
 
-            float getModulatorIndex();
-            void setModulatorIndex(float modulatorIndex);
-        };
+        float get_modulator_index();
+        void set_modulator_index(float modulator_index);
+};
 
-    } // namespace Waves
-} // namespace ProjectSynth
 
 #endif // WAVES_H
