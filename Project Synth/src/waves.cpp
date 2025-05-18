@@ -3,91 +3,84 @@
 #include <stdexcept>
 #include <math.h>
 
-namespace ProjectSynth::Waves {
+enum class WaveTypes { Sine, Sawtooth, Triangular, Square };
 
-    // declaring possible wavetypes + mapping them to their string names
-    enum class WaveTypes { Sine, Sawtooth, Triangular, Square };
-    inline WaveTypes strToWave(const std::string& s) {
-        if (s == "sine")        return WaveTypes::Sine;
-        if (s == "sawtooth")    return WaveTypes::Sawtooth;
-        if (s == "triangular")  return WaveTypes::Triangular;
-        if (s == "square")      return WaveTypes::Square;
-        throw std::invalid_argument("Unknown wave type: " + s);
-    };
+inline WaveTypes str_to_wave(const std::string& s) {
+    if (s == "sine")        return WaveTypes::Sine;
+    if (s == "sawtooth")    return WaveTypes::Sawtooth;
+    if (s == "triangular")  return WaveTypes::Triangular;
+    if (s == "square")      return WaveTypes::Square;
+    throw std::invalid_argument("Unknown wave type: " + s);
+};
 
 
-    class Wave {
-        private:
-            float amplitude;
-            float phase;
-            float frequency;
-            WaveTypes waveType;
-    
-        public:
-            Wave(float amplitude, float phase, float frequency, const std::string& waveTypeStr) {
-                this->amplitude = amplitude;
-                this->phase = phase;
-                this->frequency = frequency;
-                this->waveType  = strToWave(waveTypeStr);             
-            };
+class Wave {
+    private:
+        float amplitude;
+        float phase;
+        float frequency;
+        WaveTypes wave_type;
 
-            // getters and setters
-            float getAmplitude() { return this->amplitude; }
-            void setAmplitude(float amplitude) { this->amplitude = amplitude; }
+    public:
+        Wave(float amplitude, float phase, float frequency, const std::string& wave_type_str) {
+            this->amplitude = amplitude;
+            this->phase = phase;
+            this->frequency = frequency;
+            this->wave_type  = str_to_wave(wave_type_str);             
+        };
 
-            float getPhase() { return this->phase; }
-            void setPhase(float phase) { this->phase = phase; }
+        // getters and setters
+        float get_amplitude() { return this->amplitude; }
+        void set_amplitude(float amplitude) { this->amplitude = amplitude; }
 
-            float getFrequency() { return this->frequency; }
-            void setFrequency(float frequency) { this->frequency = frequency; }
+        float get_phase() { return this->phase; }
+        void set_phase(float phase) { this->phase = phase; }
 
-            WaveTypes getWaveType() { return this->waveType; }
-            void setWaveType(const std::string& waveTypeStr) { this->waveType = strToWave(waveTypeStr); }
+        float get_frequency() { return this->frequency; }
+        void set_frequency(float frequency) { this->frequency = frequency; }
 
-            float getSignalValue(float phase) {
-                switch(waveType) {
-                    case WaveTypes::Sine: return sineWave(phase);
-                    case WaveTypes::Square: return squareWave(phase); 
-                    case WaveTypes::Sawtooth: return sawtoothWave(phase); 
-                    case WaveTypes::Triangular: return triangularWave(phase); 
-                }
+        WaveTypes get_wave_type() { return this->wave_type; }
+        void set_wave_type(const std::string& wave_type_str) { this->wave_type = str_to_wave(wave_type_str); }
+
+        float get_signal_value(float phase) {
+            switch(wave_type) {
+                case WaveTypes::Sine: return sine_wave(phase);
+                case WaveTypes::Square: return square_wave(phase); 
+                case WaveTypes::Sawtooth: return sawtooth_wave(phase); 
+                case WaveTypes::Triangular: return triangular_wave(phase); 
             }
+            return 0.0f; // avoid warning
+        }
 
-            float sineWave(float phase) {
-                return amplitude * sin(phase * 2 * M_PI);
+        float sine_wave(float phase) {
+            return amplitude * sin(phase * 2 * M_PI);
+        }
+
+        float square_wave(float phase) {
+            if (phase < 0.5f) { return amplitude; } 
+            else { return -amplitude; }
+        }
+
+        float sawtooth_wave(float phase) {
+            return (2.0f * amplitude * phase) - amplitude;
+        }
+
+        float triangular_wave(float phase) {
+            if (phase < 0.5f) {
+                return 4.0f * amplitude * phase - amplitude;
+            } else {
+                return -4.0f * amplitude * (phase - 0.5f) + amplitude;
             }
+        }
+};
 
-            float squareWave(float phase) {
-                if (phase < 0.5f) { return amplitude; } 
-                else { return -amplitude; }
-            }
+class CarrierWave : public Wave {
+    private:
+        float modulator_index;
+    public:
+        CarrierWave(float amplitude, float phase, float frequency, const std::string& wave_type_str, float modulator_index)
+            : Wave(amplitude, phase, frequency, wave_type_str), modulator_index(modulator_index) {}
 
-            float sawtoothWave(float phase) {
-                return (2.0f * amplitude * phase) - amplitude;
-            }
-
-            float triangularWave(float phase) {
-                if (phase < 0.5f) {
-                    // Rising edge from -amplitude to +amplitude
-                    return 4.0f * amplitude * phase - amplitude;
-                } else {
-                    // Falling edge from +amplitude back to -amplitude
-                    return -4.0f * amplitude * (phase - 0.5f) + amplitude;
-                }
-            }
-    };
-
-    class CarrierWave : Wave {
-        private:
-            float modulatorIndex;
-        public:
-            CarrierWave(float amplitude, float phase, float frequency, const std::string& waveTypeStr, float modulatorIndex)
-                : Wave(amplitude, phase, frequency, waveTypeStr), modulatorIndex(modulatorIndex) {}
-
-        
-            float getModulatorIndex() { return modulatorIndex; }
-            void setModulatorIndex(float modulatorIndex) { this->modulatorIndex = modulatorIndex; }
-    };
-
-
-}
+        float get_modulator_index() { return modulator_index; }
+        void set_modulator_index(float modulator_index) { this->modulator_index = modulator_index; }
+};
