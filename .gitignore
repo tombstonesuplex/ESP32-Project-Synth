@@ -1,0 +1,18 @@
+# --- PlatformIO build output ---------------------------------
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# --- IDE & editor files --------------------------------------
+.vscode/
+*.code-workspace
+.clangd/
+.clang-tidy
+.idea/
+*.swp
+*~
+
+# --- OS cruft ------------------------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
