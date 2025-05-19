@@ -499,7 +499,7 @@
                 "ARDUINO=10812",
                 "ARDUINO_VARIANT=\"uPesy_esp32_wroom_devkit\"",
                 "ARDUINO_BOARD=\"uPesy ESP32 Wroom DevKit\"",
-                "ARDUINO_PARTITION_default",
+                "ARDUINO_PARTITION_partition_no_OTA",
                 ""
             ],
             "cStandard": "gnu99",
