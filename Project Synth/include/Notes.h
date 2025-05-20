@@ -12,6 +12,8 @@ struct ADSREnvelope {
     float release  = 0.08f;
 };
 
+// TODO: pitch envelope (i.e for kick drum) ?? 
+
 enum Note {
     // note = semitone
     C = 0,
@@ -26,6 +28,7 @@ enum Note {
     A = 9,
     As = 10,
     B = 11
+    // TODO: add C-high
 };
 
 float note_frequency(Note note, int octave);
@@ -34,6 +37,7 @@ class Scale {
 public:
     Note tonic;
     std::vector<int> semitones;
+    std::vector<int> semitonePattern;
     std::vector<float> noteFrequencies;
     int tonicOctave;
 
@@ -58,6 +62,27 @@ private:
     const std::vector<int> semitonePattern {0, 2, 3, 5, 7, 8, 10};
 public:
     MinorScale(Note tonic, int tonicOctave = 1);
+};
+
+class PentatonicMajorScale : public Scale {
+private:
+    const std::vector<int> semitonePattern 	{0, 2, 4, 7, 9};
+public:
+    PentatonicMajorScale(Note tonic, int tonicOctave = 1);
+};
+
+class PentatonicMinorScale : public Scale {
+private:
+    const std::vector<int> semitonePattern 	{0, 3, 5, 7, 10};
+public:
+    PentatonicMinorScale(Note tonic, int tonicOctave = 1);
+};
+
+class BluesScale : public Scale {
+private:
+    const std::vector<int> semitonePattern 	{0, 3, 5, 6, 7, 10};
+public:
+    BluesScale(Note tonic, int tonicOctave = 1);
 };
 
 #endif // NOTES_H

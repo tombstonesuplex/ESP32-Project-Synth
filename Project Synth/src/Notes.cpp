@@ -14,7 +14,10 @@ float note_frequency(Note note, int octave) {
 };
 
 
-Scale::Scale(Note tonic, int tonicOctave ) : tonic(tonic), tonicOctave(tonicOctave) {}
+Scale::Scale(Note tonic, int tonicOctave ) : tonic(tonic), tonicOctave(tonicOctave) {
+    this->semitones = semitonePattern;
+    generateFrequencies();
+}
 
 // Call this after semitones is set to fill noteFrequencies
 void Scale::generateFrequencies() {
@@ -47,19 +50,3 @@ void Scale::addOctave() {
         generateFrequencies();
 }
 
-
-MajorScale::MajorScale(Note tonic, int tonicOctave)
-    : Scale(tonic, tonicOctave)            // call Scale constructor
-{
-    semitones = semitonePattern;          // copies semitone pattern into semitones (as semitones already initialised in constructor)
-    generateFrequencies();                 // fill noteFrequencies
-}
-
-
-
-MinorScale::MinorScale(Note tonic, int tonicOctave)
-    : Scale(tonic, tonicOctave)            // call Scale constructor
-{
-    semitones = semitonePattern;          // copies semitone pattern into semitones (as semitones already initialised in constructor)
-    generateFrequencies();                 // fill noteFrequencies
-}
