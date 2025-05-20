@@ -1,29 +1,46 @@
 #include <math.h>
 #include <string>
+
+#include <AudioPipeline.h>
+
+
 #include <Waves.h>
+#include <Notes.h>
 
-class AudioPipeline {
-    private:
-        Wave carrier;
-        Wave modulator;
-        float carrierFrequency;
-        float modulatorFrequency;
-        float modulatorIndex;
 
-        void set_fm_parameters(float carrierFreq, float modFreq, float modIndex);
-    public:
-        AudioPipeline(float sampleRate);
+AudioPipeline::AudioPipeline(float sampleRate)
+    : sampleRate(sampleRate),
+    carrier(1.0f, 0.0f, 440.0f, "sine"),    // initialize carrier wave with amplitude=1, phase=0, freq=440Hz, sine wave
+    modulator(0.0f, 0.0f, 0.0f, "sine")     // initialize modulator wave as silent (amplitude=0)
+{}
 
-        void set_carrier(Wave wave) { this->carrier = wave; }
-        void set_modulator(Wave wave) { this->modulator = wave;}
-};
 
-// callback when sample runs out
-int32_t get_sound_data(uint8_t *data, int32_t byteCount) {
-            // generate your sound data 
-            // return the effective length in bytes
-            return byteCount;
-};
+void AudioPipeline::set_carrier(Wave wave) { this->carrier = wave; }
+void AudioPipeline::set_modulator(Wave wave) { this->modulator = wave; }
+void AudioPipeline::set_fm_parameters(float carrierFreq, float modFreq, float modIndex) {
+    carrierFrequency = carrierFreq;
+    modulatorFrequency = modFreq;
+    modulatorIndex = modIndex;
+}
+
+    // Generate audio samples
+int32_t AudioPipeline::generate_audio(uint8_t* data, int32_t byteCount) {
+    int16_t* samples = reinterpret_cast<int16_t*>(data);
+    int sampleCount = byteCount / 2;  // 2 bytes per sample
+
+    float phaseIncrement = 2.0f * M_PI * carrierFrequency / sampleRate;
+
+    for (int i = 0; i < sampleCount; ++i) {
+        float sample = sin(phase);
+        samples[i] = (int16_t)(sample * 32767);
+        phase += phaseIncrement;
+        if (phase > 2.0f * M_PI) phase -= 2.0f * M_PI;
+    }
+    return byteCount;
+}
+
+// Create a global (or singleton) instance of AudioPipeline
+
 
 /**********************************************************************
  *  AUDIO PIPELINE — ESP32 → Bluetooth Speaker
