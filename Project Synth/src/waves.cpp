@@ -1,77 +1,126 @@
-#include <string>
-
-#include <stdexcept>
 #include <math.h>
-
 #include <Waves.h>
+#include <Arduino.h>
 
-WaveTypes str_to_wave(const std::string& s) {
-    if (s == "sine")        return WaveTypes::Sine;
-    if (s == "sawtooth")    return WaveTypes::Sawtooth;
-    if (s == "triangular")  return WaveTypes::Triangular;
-    if (s == "square")      return WaveTypes::Square;
-    throw std::invalid_argument("Unknown wave type: " + s);
-};
+#include <vector>
+#include <string>
+#include <stdexcept>
 
+// Pre-calculated sine table for faster lookup
+static const int SINE_TABLE_SIZE = 1024;
+static float sineTable[SINE_TABLE_SIZE];
+static bool sineTableInitialized = false;
 
+void initSineTable() {
+    if (!sineTableInitialized) {
+        for (int i = 0; i < SINE_TABLE_SIZE; i++) {
+            sineTable[i] = sinf(2.0f * M_PI * i / SINE_TABLE_SIZE);
+        }
+        sineTableInitialized = true;
+    }
+}
 
-
-Wave::Wave(float amplitude, float phase, float frequency, const std::string& wave_type_str) {
-    this->amplitude = amplitude;
-    this->phase = phase;
-    this->frequency = frequency;
-    this->wave_type  = str_to_wave(wave_type_str);             
-};
+Wave::Wave(float frequency, WaveType waveform)
+    : frequency(frequency), waveform(waveform) {
+    initSineTable();  // Initialize sine table if not already done
+    Serial.printf("Wave created with frequency %.1f Hz, type %d\n", frequency, waveform);
+}
 
 // getters and setters
-float Wave::get_amplitude() { return this->amplitude; }
-void Wave::set_amplitude(float amplitude) { this->amplitude = amplitude; }
+float Wave::get_amplitude() { 
+    return amplitude; 
+}
 
-float Wave::get_phase() { return this->phase; }
-void Wave::set_phase(float phase) { this->phase = phase; }
+void Wave::set_amplitude(float amplitude) { 
+    this->amplitude = amplitude; 
+}
 
-float Wave::get_frequency() { return this->frequency; }
-void Wave::set_frequency(float frequency) { this->frequency = frequency; }
+float Wave::get_frequency() { 
+    return frequency; 
+}
 
-WaveTypes Wave::get_wave_type() { return this->wave_type; }
-void Wave::set_wave_type(const std::string& wave_type_str) { this->wave_type = str_to_wave(wave_type_str); }
+void Wave::set_frequency(float frequency) { 
+    this->frequency = frequency; 
+}
+
+WaveType Wave::get_wave_type() { 
+    return waveform; 
+}
+
+void Wave::set_wave_type(WaveType waveform) { 
+    this->waveform = waveform; 
+}
 
 float Wave::get_signal_value(float phase) {
-    switch(get_wave_type()) {
-        case WaveTypes::Sine: return sine_wave(phase);
-        case WaveTypes::Square: return square_wave(phase); 
-        case WaveTypes::Sawtooth: return sawtooth_wave(phase); 
-        case WaveTypes::Triangular: return triangular_wave(phase); 
+    // Ensure phase is between 0 and 1
+    phase = fmod(phase, 1.0f);
+    if (phase < 0.0f) phase += 1.0f;
+
+    float value = 0.0f;
+    
+    // Debug output occasionally
+    static unsigned long lastDebugTime = 0;
+    unsigned long currentTime = millis();
+    
+    switch (waveform) {
+        case SINE: {
+            // Fast sine lookup using pre-calculated table
+            float tableIndex = phase * SINE_TABLE_SIZE;
+            int index1 = (int)tableIndex;
+            int index2 = (index1 + 1) % SINE_TABLE_SIZE;
+            float frac = tableIndex - index1;
+            
+            // Linear interpolation between table values
+            value = sineTable[index1] * (1.0f - frac) + sineTable[index2] * frac;
+            break;
+        }
+            
+        case SQUARE: {
+            // Optimized square wave with reduced harmonics
+            value = (phase < 0.5f) ? 0.7f : -0.7f;
+            break;
+        }
+            
+        case TRIANGLE: {
+            // Optimized triangle wave
+            value = (phase < 0.5f) ? 
+                (4.0f * phase - 1.0f) : 
+                (3.0f - 4.0f * phase);
+            value *= 0.8f;  // Scale to prevent clipping
+            break;
+        }
+            
+        case SAWTOOTH: {
+            // Optimized sawtooth with fewer harmonics
+            value = 0.0f;
+            const int numHarmonics = 4;  // Reduced harmonics for better performance
+            float phaseMultiple = 2.0f * M_PI * phase;
+            
+            for (int i = 1; i <= numHarmonics; i++) {
+                // Use sine table for harmonics
+                float harmonicPhase = fmod(phase * i, 1.0f) * SINE_TABLE_SIZE;
+                int index = (int)harmonicPhase;
+                float frac = harmonicPhase - index;
+                value += (sineTable[index] * (1.0f - frac) + 
+                         sineTable[(index + 1) % SINE_TABLE_SIZE] * frac) / i;
+            }
+            value *= 0.5f;  // Scale down to prevent clipping
+            break;
+        }
+            
+        default:
+            value = 0.0f;
+            break;
     }
-    return 0.0f; // avoid warning
-}
-
-float Wave::sine_wave(float phase) {
-    return amplitude * sin(phase * 2 * M_PI);
-}
-
-float Wave::square_wave(float phase) {
-    if (phase < 0.5f) { return amplitude; } 
-    else { return -amplitude; }
-}
-
-float Wave::sawtooth_wave(float phase) {
-    return (2.0f * amplitude * phase) - amplitude;
-}
-
-float Wave::triangular_wave(float phase) {
-    if (phase < 0.5f) {
-        return 4.0f * amplitude * phase - amplitude;
-    } else {
-        return -4.0f * amplitude * (phase - 0.5f) + amplitude;
+    
+    value *= amplitude;
+    
+    // Debug output every 500ms
+    if (currentTime - lastDebugTime >= 500) {
+        Serial.printf("Wave %.1f Hz - Phase: %.4f, Raw: %.4f, Amp: %.4f, Final: %.4f\n",
+            frequency, phase, value/amplitude, amplitude, value);
+        lastDebugTime = currentTime;
     }
+    
+    return value;
 }
-
-
-
-CarrierWave::CarrierWave(float amplitude, float phase, float frequency, const std::string& wave_type_str, float modulator_index)
-    : Wave(amplitude, phase, frequency, wave_type_str), modulator_index(modulator_index) {}
-
-float CarrierWave::get_modulator_index() { return modulator_index; }
-void CarrierWave::set_modulator_index(float modulator_index) { this->modulator_index = modulator_index; }
-
