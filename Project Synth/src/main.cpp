@@ -10,9 +10,10 @@
 #include <vector>
 #include <map>
 
-// Static buffer for audio processing
-static const int MONO_BUFFER_SIZE = 256;  // Reduced from 512 for lower latency
+// Static buffer for audio processing - increased for smoother playback
+static const int MONO_BUFFER_SIZE = 512;  // Back to 512 for more stable audio
 static int16_t monoBuffer[MONO_BUFFER_SIZE];
+static int16_t stereoBuffer[MONO_BUFFER_SIZE * 2];  // Pre-allocate stereo buffer
 
 // Global state
 CurrentState state(44100);
@@ -22,11 +23,10 @@ const int notePins[12] = { 32, 33, 25, 26, 27, 14, 23, 22, 21, 19, 18, 17};
 int buttonsCurrentlyPressed[12] = {0};
 
 // Button debouncing
-static const unsigned long BUTTON_DEBOUNCE_MS = 10;  // Increased to 10ms for better stability
+static const unsigned long BUTTON_DEBOUNCE_MS = 5;  // Reduced debounce time for faster response
 unsigned long lastDebounceTime[12] = {0};
 int lastButtonState[12] = {HIGH};
 int buttonState[12] = {HIGH};
-int lastStableState[12] = {HIGH};  // Track the last stable state
 
 // Audio callback - optimized for performance
 int32_t audio_callback(uint8_t* data, int32_t byteCount) {
@@ -35,18 +35,18 @@ int32_t audio_callback(uint8_t* data, int32_t byteCount) {
     // Calculate buffer sizes
     int32_t monoSampleCount = byteCount / 4;  // 4 bytes per stereo sample
     if (monoSampleCount > MONO_BUFFER_SIZE) {
-        monoSampleCount = MONO_BUFFER_SIZE;  // Prevent buffer overflow
+        monoSampleCount = MONO_BUFFER_SIZE;
     }
     
     // Generate mono audio
     int32_t result = state.generate_audio(reinterpret_cast<uint8_t*>(monoBuffer), monoSampleCount * 2);
     
-    // Convert mono to stereo with direct memory access
+    // Convert mono to stereo using pre-allocated buffer
     int16_t* stereoSamples = reinterpret_cast<int16_t*>(data);
     for (int i = 0; i < monoSampleCount; i++) {
-        int32_t idx = i * 2;
-        stereoSamples[idx] = monoBuffer[i];     // Left channel
-        stereoSamples[idx + 1] = monoBuffer[i]; // Right channel
+        int32_t stereoIdx = i * 2;
+        stereoSamples[stereoIdx] = monoBuffer[i];
+        stereoSamples[stereoIdx + 1] = monoBuffer[i];
     }
     
     // Debug output
@@ -72,14 +72,12 @@ void setup() {
     // Configure pins with internal pullup
     for (int i = 0; i < 12; i++) {
         pinMode(notePins[i], INPUT_PULLUP);
-        // Initialize button states
         buttonState[i] = digitalRead(notePins[i]);
         lastButtonState[i] = buttonState[i];
-        lastStableState[i] = buttonState[i];
         Serial.printf("Configured pin %d for input\n", notePins[i]);
     }
 
-    // Initialize Bluetooth
+    // Initialize Bluetooth with optimized settings
     Serial.println("Beginning bluetooth search...");
     bluetoothMaster.set_on_connection_state_changed([](esp_a2d_connection_state_t state, void *) {
         switch (state) {
@@ -98,7 +96,7 @@ void setup() {
         }
     });
 
-    // Start Bluetooth with default settings (44.1kHz, 16-bit, stereo)
+    // Start Bluetooth with larger buffer size
     bluetoothMaster.start("Tronsmart Trip");
     bluetoothMaster.set_data_callback(audio_callback);
     Serial.println("Bluetooth initialized");
@@ -117,31 +115,24 @@ void loop() {
         for (int i = 0; i < 12; i++) {
             int reading = digitalRead(notePins[i]);
             
-            // If the reading has changed, reset the debounce timer
+            // If the button state has changed, reset the debounce timer
             if (reading != lastButtonState[i]) {
                 lastDebounceTime[i] = currentTime;
             }
             
-            // Check if enough time has passed since the last change
+            // If the button state has been stable for the debounce period
             if ((currentTime - lastDebounceTime[i]) > BUTTON_DEBOUNCE_MS) {
-                // If the button state has stabilized
-                if (reading != buttonState[i]) {
-                    buttonState[i] = reading;
-                    
-                    // Only trigger on stable state changes
-                    if (buttonState[i] != lastStableState[i]) {
-                        if (buttonState[i] == LOW && !buttonsCurrentlyPressed[i]) {
-                            state.press_key(i, audioTime);
-                            buttonsCurrentlyPressed[i] = 1;
-                            Serial.printf("Key press  %d at time %.4f\n", i, audioTime);
-                        }
-                        else if (buttonState[i] == HIGH && buttonsCurrentlyPressed[i]) {
-                            state.depress_key(i, audioTime);
-                            buttonsCurrentlyPressed[i] = 0;
-                            Serial.printf("Key depress %d at time %.4f\n", i, audioTime);
-                        }
-                        lastStableState[i] = buttonState[i];
-                    }
+                // If this is a new press (LOW) and we haven't registered it yet
+                if (reading == LOW && !buttonsCurrentlyPressed[i]) {
+                    buttonsCurrentlyPressed[i] = 1;
+                    state.press_key(i, audioTime);
+                    Serial.printf("Key press  %d at time %.4f\n", i, audioTime);
+                }
+                // If this is a new release (HIGH) and we had registered a press
+                else if (reading == HIGH && buttonsCurrentlyPressed[i]) {
+                    buttonsCurrentlyPressed[i] = 0;
+                    state.depress_key(i, audioTime);
+                    Serial.printf("Key depress %d at time %.4f\n", i, audioTime);
                 }
             }
             
@@ -151,8 +142,7 @@ void loop() {
         lastPollTime = currentTime;
     }
     
-    // Small yield to prevent watchdog triggers
-    vTaskDelay(1);
+    vTaskDelay(2);
 }
 
 

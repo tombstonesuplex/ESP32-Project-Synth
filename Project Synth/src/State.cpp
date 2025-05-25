@@ -113,7 +113,7 @@ float CurrentState::render_voices(float currentAudioTime) {
     float audioOut = 0.0f;
     int activeVoiceCount = 0;
     static unsigned long lastDebugTime = 0;
-    static const float MAX_VOICES = 6;  // Reduced from 8 for better performance
+    static const float MAX_VOICES = 4;  // Reduced from 8 for better performance
     static const float VOICE_HEADROOM = 0.7f;  // Increased headroom
 
     // First pass: count active voices and remove inactive ones
